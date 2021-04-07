@@ -1,6 +1,4 @@
-// Package mutateaffinity deals with AdmissionReview requests and
-// responses, it takes in the request body and returns a readily
-// converted JSON []byte that can be returned from an http Handler
+// Package mutateaffinity deals with AdmissionReview requests and responses
 package mutateaffinity
 
 import (
@@ -75,7 +73,8 @@ func NewMutator(k8sclient k8sclient.Interface, configMapName string) *Mutator {
 
 // Mutate creates/updates the nodeAffinity of the k8s
 // object with the node selector terms from the config map in the
-// object namespace
+// object namespace by taking a request body and returns a JSON []byte
+// that can be returned directly from an http Handler or returns an error
 func (m *Mutator) Mutate(body []byte) ([]byte, error) {
 	log.Infof("Received AdmissionReview: %s\n", string(body))
 
