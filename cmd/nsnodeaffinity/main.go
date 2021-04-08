@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/idgenchev/namespace-node-affinity/pkg/mutateaffinity"
+	"github.com/idgenchev/namespace-node-affinity/pkg/affinityinjector"
 	"github.com/jessevdk/go-flags"
 	log "github.com/sirupsen/logrus"
 	k8sclient "k8s.io/client-go/kubernetes"
@@ -22,8 +22,12 @@ var opts struct {
 	ConfigMapName string        `long:"config-map-name" short:"m" env:"CONFIG_MAP_NAME" default:"namespace-node-affinity" description:"Name of the configm map containing the node selector terms to be applied to every pod on creation. This config map should be present in every namespace where this webhook is enabled"`
 }
 
+type injectorInterface interface {
+	Mutate(body []byte) ([]byte, error)
+}
+
 type handler struct {
-	mutator mutateaffinity.ObjectMutatorInterface
+	injector injectorInterface
 }
 
 func (h *handler) mutate(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +40,7 @@ func (h *handler) mutate(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s", err)
 	}
 
-	mutated, err := h.mutator.Mutate(body)
+	mutated, err := h.injector.Mutate(body)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -63,7 +67,7 @@ func main() {
 	}
 
 	h := handler{
-		mutateaffinity.NewMutator(clientset, opts.ConfigMapName),
+		affinityinjector.NewAffinityInjector(clientset, opts.ConfigMapName),
 	}
 	mux.HandleFunc("/mutate", h.mutate)
 

@@ -1,7 +1,6 @@
-package mutateaffinity
+package affinityinjector
 
 import (
-	// "encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -171,7 +170,7 @@ func TestMutateWithInvalidBody(t *testing.T) {
 	t.Parallel()
 
 	clientset := fake.NewSimpleClientset()
-	m := Mutator{clientset, "cm"}
+	m := AffinityInjector{clientset, "cm"}
 
 	body, err := m.Mutate([]byte("invalid"))
 
@@ -183,7 +182,7 @@ func TestMutateWithNoRequest(t *testing.T) {
 	t.Parallel()
 
 	clientset := fake.NewSimpleClientset()
-	m := Mutator{clientset, "cm"}
+	m := AffinityInjector{clientset, "cm"}
 
 	admissionReview := []byte("{}")
 
@@ -197,7 +196,7 @@ func TestMutateWithMissingConfigMap(t *testing.T) {
 	t.Parallel()
 
 	clientset := fake.NewSimpleClientset()
-	m := Mutator{clientset, "test-cm"}
+	m := AffinityInjector{clientset, "test-cm"}
 
 	admissionReview := v1beta1.AdmissionReview{
 		Request: &v1beta1.AdmissionRequest{
@@ -224,7 +223,7 @@ func TestMutateWithMissingNodeSelectorTerms(t *testing.T) {
 		},
 	}
 	clientset := fake.NewSimpleClientset(cm)
-	m := Mutator{clientset, "test-cm"}
+	m := AffinityInjector{clientset, "test-cm"}
 
 	admissionReview := v1beta1.AdmissionReview{
 		Request: &v1beta1.AdmissionRequest{
@@ -256,7 +255,7 @@ func TestMutateWithInvalidNodeSelectorTerms(t *testing.T) {
 		Data: map[string]string{cmKey: "invalid"},
 	}
 	clientset := fake.NewSimpleClientset(cm)
-	m := Mutator{clientset, "test-cm"}
+	m := AffinityInjector{clientset, "test-cm"}
 
 	admissionReview := v1beta1.AdmissionReview{
 		Request: &v1beta1.AdmissionRequest{
@@ -282,7 +281,7 @@ func TestMutateWithBuildPatchError(t *testing.T) {
 		Data: map[string]string{cmKey: nodeSelectorTermsJSON()},
 	}
 	clientset := fake.NewSimpleClientset(cm)
-	m := Mutator{clientset, "test-cm"}
+	m := AffinityInjector{clientset, "test-cm"}
 
 	admissionReview := v1beta1.AdmissionReview{
 		Request: &v1beta1.AdmissionRequest{
@@ -317,7 +316,7 @@ func TestMutate(t *testing.T) {
 		Data: map[string]string{cmKey: nodeSelectorTermsJSON()},
 	}
 	clientset := fake.NewSimpleClientset(cm)
-	m := Mutator{clientset, "test-cm"}
+	m := AffinityInjector{clientset, "test-cm"}
 
 	admissionReview := v1beta1.AdmissionReview{
 		Request: &v1beta1.AdmissionRequest{

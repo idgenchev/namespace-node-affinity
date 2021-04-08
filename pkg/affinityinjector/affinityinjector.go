@@ -1,5 +1,5 @@
-// Package mutateaffinity deals with AdmissionReview requests and responses
-package mutateaffinity
+// Package affinityinjector deals with AdmissionReview requests and responses
+package affinityinjector
 
 import (
 	"context"
@@ -55,27 +55,23 @@ type JSONPatch struct {
 	Value interface{}  `json:"value"`
 }
 
-// ObjectMutatorInterface is an interface for processing AdmissionReview
-type ObjectMutatorInterface interface {
-	Mutate(body []byte) ([]byte, error)
-}
+// AffinityInjector is an implementation of the ObjectMutatorInterface
 
-// Mutator is an implementation of the ObjectMutatorInterface
-type Mutator struct {
+type AffinityInjector struct {
 	clientset     k8sclient.Interface
 	configMapName string
 }
 
-// NewMutator returns *Mutator with k8sclient and configMapName
-func NewMutator(k8sclient k8sclient.Interface, configMapName string) *Mutator {
-	return &Mutator{k8sclient, configMapName}
+// NewAffinityInjector returns *AffinityInjector with k8sclient and configMapName
+func NewAffinityInjector(k8sclient k8sclient.Interface, configMapName string) *AffinityInjector {
+	return &AffinityInjector{k8sclient, configMapName}
 }
 
-// Mutate creates/updates the nodeAffinity of the k8s
-// object with the node selector terms from the config map in the
-// object namespace by taking a request body and returns a JSON []byte
-// that can be returned directly from an http Handler or returns an error
-func (m *Mutator) Mutate(body []byte) ([]byte, error) {
+// Mutate unmarshalls the AdmissionReview (body) and creates or
+// updates the nodeAffinity of the k8s object in the admission review
+// request, sets the AdmissionReview response and returns the
+// marshalled AdmissionReview or an error
+func (m *AffinityInjector) Mutate(body []byte) ([]byte, error) {
 	log.Infof("Received AdmissionReview: %s\n", string(body))
 
 	// unmarshal request into AdmissionReview struct
@@ -141,7 +137,7 @@ func (m *Mutator) Mutate(body []byte) ([]byte, error) {
 	return responseBody, nil
 }
 
-func (m *Mutator) nodeSelectorTerms(namespace string) ([]corev1.NodeSelectorTerm, error) {
+func (m *AffinityInjector) nodeSelectorTerms(namespace string) ([]corev1.NodeSelectorTerm, error) {
 	// Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.ConfigMap, error)
 	configMap, err := m.clientset.CoreV1().
 		ConfigMaps(namespace).

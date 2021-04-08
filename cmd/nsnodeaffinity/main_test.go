@@ -15,12 +15,12 @@ var (
 	mutateErr = "mutate error"
 )
 
-type FakeMutator struct {
+type FakeInjector struct {
 	body []byte
 	err  error
 }
 
-func (f *FakeMutator) Mutate(body []byte) ([]byte, error) {
+func (f *FakeInjector) Mutate(body []byte) ([]byte, error) {
 	return f.body, f.err
 }
 
@@ -35,7 +35,7 @@ func TestMutateWithRequestError(t *testing.T) {
 	t.Parallel()
 
 	h := handler{
-		mutator: &FakeMutator{},
+		injector: &FakeInjector{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/mutate", errReader{})
@@ -51,7 +51,7 @@ func TestMutateWithMutatorError(t *testing.T) {
 	t.Parallel()
 
 	h := handler{
-		mutator: &FakeMutator{
+		injector: &FakeInjector{
 			err: errors.New(mutateErr),
 		},
 	}
@@ -70,7 +70,7 @@ func TestMutate(t *testing.T) {
 	t.Parallel()
 
 	h := handler{
-		mutator: &FakeMutator{
+		injector: &FakeInjector{
 			body: []byte("test"),
 		},
 	}
