@@ -1,0 +1,28 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: namespace-node-affinity
+  namespace: default
+  labels:
+    app: namespace-node-affinity
+webhooks:
+  - name: namespace-node-affinity.default.svc
+    clientConfig:
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNU1EY3lOVEV4TkRjek9Gb1hEVEk1TURjeU1qRXhORGN6T0Zvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTHhzCk9Xay9OUE5jL2FMeFFiemZ3dnJlVGR3V3pXaU4rUlV2WTFLclRPWHB5WlBSaGMrUU8xc25ZQzdCWGtZTWNJVzAKaFVjLzRlR0Vtb3NGZjZpeTR5bzlUc3g4WW82dkxzazBHWktZay92dlJDcjVyL09wZUk2dFFOTTlMVFNkOXhXdgpFT0ZONDdsU2dFSWV5K0o4b2lHYldNb0V4Q3lmSHdINVVHV1pUZCtkWk5ELzNMT29oL3VRY2RjME4yK1llTXVECkJJa3JXL0VYODM3T3dZcGRMZlJka0dPdHoxWXloaHRGQmVyQWpRTG4vNEp2Z1lOQzQ5V0JRQitrZU1mNHJObDAKenFLaTNraklicEY1TEdUUVNYRTY3SVArb0dkYTgvYTVpN3NNUlNONFNqRVlMaGs5c1YxdUFGQW4weW9xMFNhKwpFdjB1U01jVFJjenFwVTBpSms4Q0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFLams2NUtaUmhmbXVHUit5NnhoTFdZT1E0OUUKVmdONGR2MHJpR2ozWUw1TktoMTgyRTY0MGJpbzBFMDBabnpWb2tHT3ZnKzBSMWFGSFAyZXh4R1VsMDBWMXJkWgp6QWJCQW13aGh2UURORnJmQ0hKKytjZTNSZTl1RTdxZFFiOVgxOGlQTko3NlpKRS9OOFFmeitEZ1RqR244dEdwCjV4cTZVZ0RRWXBPd05LOXh6endLb29uKzFIRU9MSm5ELzBMVDlMRlNXRDBSSlk1eHJLWmFvbHJZUkRLRHlyc2kKNWdMUE5MZXVuVTBjb3pHdWVmY3grWXhtTXJqRndLamxORDFITEZvSmw0RTcwcTN0T0RxdUc3KzlsVW9OREJ0SgpPUmdvMWJ1THNQdVpiWURNVnZ5UHhlUkg2RDB0cmtKaFg3QmZ1bjUyZHpJNkVaUlJEQ081cVhlS0pDbz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+      service:
+        name: namespace-node-affinity
+        namespace: default
+        path: "/mutate"
+        port: 443
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    sideEffects: None
+    timeoutSeconds: 5
+    reinvocationPolicy: Never
+    failurePolicy: Ignore
+    namespaceSelector:
+      matchLabels:
+        namespace-node-affinity: enabled
