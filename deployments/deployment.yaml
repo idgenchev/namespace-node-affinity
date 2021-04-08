@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-node-affinity
+  labels:
+    app: namespace-node-affinity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: namespace-node-affinity
+  template:
+    metadata:
+      name: namespace-node-affinity
+      labels:
+        app: namespace-node-affinity
+    spec:
+      serviceAccountName: namespace-node-affinity
+      containers:
+      - name: mutator
+        image: webhook-test
+        volumeMounts:
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+          readOnly: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 250m
+            memory: 64Mi
+      initContainers:
+      - name: init-webhook
+        image: init-container
+        imagePullPolicy: Never
+        volumeMounts:
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+      volumes:
+      - name: webhook-certs
+        emptyDir: {}
