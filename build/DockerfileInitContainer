@@ -1,0 +1,25 @@
+# Builder
+# golang:1.16-alpine3.12
+FROM golang@sha256:4ab868cf59933af43b9a5d528a08faad7eb673ac9734a1c186a91d0e9c11f942 as builder
+
+COPY . ./app
+
+WORKDIR ./app
+
+RUN export GO111MODULE=on
+
+RUN go get -v ./...
+
+RUN apk add --no-cache gcc musl-dev libc6-compat
+
+RUN go build -ldflags "-linkmode external -extldflags -static" -o /create-certs cmd/createcerts/main.go
+
+# Webhook
+# FROM scratch
+FROM alpine:latest
+
+EXPOSE 8443
+
+COPY --from=builder /create-certs /create-certs
+
+ENTRYPOINT ["/create-certs"]
