@@ -6,6 +6,7 @@ on:
       - 'main'
     tags:
       - 'v*.*.*'
+      - 'v*.*'
 
   workflow_run:
     workflows:
@@ -14,6 +15,7 @@ on:
       - 'main'
     tags:
       - 'v*.*.*'
+      - 'v*.*'
     types:
       - completed
 
