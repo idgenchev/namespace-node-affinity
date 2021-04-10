@@ -1,4 +1,4 @@
-name: Build and push docker images
+name: CI/CD
 
 on:
   push:
@@ -6,22 +6,42 @@ on:
       - 'main'
     tags:
       - 'v*.*.*'
-      - 'v*.*'
-
-  workflow_run:
-    workflows:
-      - 'Test'
+  pull_request:
     branches:
       - 'main'
-    tags:
-      - 'v*.*.*'
-      - 'v*.*'
-    types:
-      - completed
 
 jobs:
-  docker:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: Install dependencies
+        run: go get -u golang.org/x/lint/golint
+
+      - name: Lint
+        run: golint -set_exit_status ./...
+
+      - name: Check gofmt
+        run: ./scripts/gofmt-check.sh
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -v ./...
+
+  build-and-push-docker-images:
+    needs: lint-and-test
+    if: ${{ github.event_name != 'pull_request' }}
 
     runs-on: ubuntu-latest
 
@@ -38,12 +58,8 @@ jobs:
           flavor: |
             latest=true
           tags: |
-            type=schedule
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
 
       - name: Docker meta for the init container
         id: initmeta
@@ -54,12 +70,8 @@ jobs:
           flavor: |
             latest=true
           tags: |
-            type=schedule
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -68,7 +80,6 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
