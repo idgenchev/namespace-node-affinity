@@ -206,6 +206,7 @@ func TestMutateWithMissingConfigMap(t *testing.T) {
 		},
 	}
 	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
 
 	body, err := m.Mutate(j)
 	assert.Nil(t, body)
@@ -234,6 +235,7 @@ func TestMutateWithMissingNodeSelectorTerms(t *testing.T) {
 		},
 	}
 	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
 
 	body, err := m.Mutate(j)
 	assert.Nil(t, body)
@@ -262,6 +264,7 @@ func TestMutateWithInvalidNodeSelectorTerms(t *testing.T) {
 		},
 	}
 	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
 
 	body, err := m.Mutate(j)
 	assert.Nil(t, body)
@@ -288,6 +291,7 @@ func TestMutateWithBuildPatchError(t *testing.T) {
 		},
 	}
 	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
 
 	origMarshal := jsonMarshal
 	jsonMarshal = func(v interface{}) ([]byte, error) {
@@ -324,6 +328,7 @@ func TestMutate(t *testing.T) {
 		},
 	}
 	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
 
 	body, err := m.Mutate(j)
 	assert.NoError(t, err)
