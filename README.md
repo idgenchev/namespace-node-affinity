@@ -13,7 +13,7 @@ It might still be useful on [AKS](https://azure.microsoft.com/en-gb/services/kub
 
 The easiest way to deploy the namespace-node-affinity mutating webhook is to apply the kustomizations in the `deployments` directory:
 ```
-kubectl apply -k deployments
+kubectl apply -k deployments/base
 ```
 
 This will create the following:

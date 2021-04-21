@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-node-affinity
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+      - name: mutator
+        image: namespace-node-affinity
+        imagePullPolicy: Never
+
+      initContainers:
+      - name: init-webhook
+        image: namespace-node-affinity-init-container
+        imagePullPolicy: Never
