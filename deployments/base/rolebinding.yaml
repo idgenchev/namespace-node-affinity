@@ -1,7 +1,7 @@
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: namespace-node-affinity-rolebinding
+  name: namespace-node-affinity
 subjects:
 - kind: ServiceAccount
   name: namespace-node-affinity
