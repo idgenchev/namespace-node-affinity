@@ -8,10 +8,10 @@ import (
 
 	"github.com/idgenchev/namespace-node-affinity/pkg/affinityinjector"
 	"github.com/jessevdk/go-flags"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var opts struct {
