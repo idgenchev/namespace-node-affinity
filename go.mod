@@ -8,6 +8,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/onsi/ginkgo v1.14.1 // indirect
 	github.com/onsi/gomega v1.10.2 // indirect
+	github.com/prometheus/client_golang v1.10.0
 	github.com/sirupsen/logrus v1.8.0
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4 // indirect
