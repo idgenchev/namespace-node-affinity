@@ -139,7 +139,6 @@ func (m *AffinityInjector) Mutate(body []byte) ([]byte, error) {
 }
 
 func (m *AffinityInjector) nodeSelectorTerms(namespace string) ([]corev1.NodeSelectorTerm, error) {
-	// Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.ConfigMap, error)
 	configMap, err := m.clientset.CoreV1().
 		ConfigMaps(namespace).
 		Get(context.Background(), m.configMapName, metav1.GetOptions{})

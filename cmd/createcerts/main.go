@@ -8,13 +8,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"math/big"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/idgenchev/namespace-node-affinity/pkg/webhookconfig"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/idgenchev/namespace-node-affinity/webhookconfig"
 	"github.com/jessevdk/go-flags"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/idgenchev/namespace-node-affinity/pkg/affinityinjector"
+	"github.com/idgenchev/namespace-node-affinity/affinityinjector"
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
