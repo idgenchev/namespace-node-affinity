@@ -37,10 +37,19 @@ const (
 	AddNodeSelectorTerms        = "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/-"
 )
 
+type TolerationsPath string
+
+// Tolerations values
 const (
-	cmKey         = "nodeSelectorTerms"
-	successStatus = "Success"
-	annotationKey = "namespace-node-affinity.idgenchev.github.com/applied-patch"
+	CreateTolerations = "/spec/tolerations"
+	AddTolerations    = "/spec/tolerations/-"
+)
+
+const (
+	nodeSelectorKey = "nodeSelectorTerms"
+	tolerationsKey  = "tolerations"
+	successStatus   = "Success"
+	annotationKey   = "namespace-node-affinity.idgenchev.github.com/applied-patch"
 )
 
 var (
@@ -60,12 +69,13 @@ type JSONPatch struct {
 // AffinityInjector handles AdmissionReview objects
 type AffinityInjector struct {
 	clientset     k8sclient.Interface
+	namespace     string
 	configMapName string
 }
 
 // NewAffinityInjector returns *AffinityInjector with k8sclient and configMapName
-func NewAffinityInjector(k8sclient k8sclient.Interface, configMapName string) *AffinityInjector {
-	return &AffinityInjector{k8sclient, configMapName}
+func NewAffinityInjector(k8sclient k8sclient.Interface, namespace string, configMapName string) *AffinityInjector {
+	return &AffinityInjector{k8sclient, namespace, configMapName}
 }
 
 // Mutate unmarshalls the AdmissionReview (body) and creates or
@@ -138,29 +148,74 @@ func (m *AffinityInjector) Mutate(body []byte) ([]byte, error) {
 	return responseBody, nil
 }
 
-func (m *AffinityInjector) nodeSelectorTerms(namespace string) ([]corev1.NodeSelectorTerm, error) {
+func (m *AffinityInjector) configForNamespace(namespace string) ([]corev1.NodeSelectorTerm, []corev1.Toleration, error) {
 	configMap, err := m.clientset.CoreV1().
-		ConfigMaps(namespace).
+		ConfigMaps(m.namespace).
 		Get(context.Background(), m.configMapName, metav1.GetOptions{})
+
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrMissingConfiguration, err)
 	}
 
-	nodeSelectorTermsString, exists := configMap.Data[cmKey]
+	namespaceConfig, exists := configMap.Data[namespace]
 	if !exists {
-		return nil, fmt.Errorf("%w: nodeSelectorTerms is missing from the config map", ErrMissingNodeSelectorTerms)
+		return nil, fmt.Errorf("%w: for %s", ErrMissingConfiguration, namespace)
+	}
+
+	nodeSelectorTermsString, nodeSelectorTermsExists := namespaceConfig[nodeSelectorKey]
+	tolerationsString, tolerationsExists := namespaceConfig[tolerationsKey]
+
+	if !nodeSelectorTermsExists && !tolerationsExists {
+		return nil, nil, fmt.Errorf("%w: at least one of nodeSelectorTerms or tolerations needs to be specified for %s", ErrInvalidConfiguration, namespace)
 	}
 
 	var nodeSelectorTerms []corev1.NodeSelectorTerm
-	err = yamlUnmarshal([]byte(nodeSelectorTermsString), &nodeSelectorTerms)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidConfiguration, err)
+	var tolerations []corev1.Toleration
+
+	if nodeSelectorTermsExists {
+		err = yamlUnmarshal([]byte(nodeSelectorTermsString), &nodeSelectorTerms)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s", ErrInvalidConfiguration, err)
+		}
+	} else {
+		log.Infof("%s is missing configuration for node affinity")
 	}
 
-	return nodeSelectorTerms, nil
+	if tolerationsExists {
+		err = yamlUnmarshal([]byte(tolerationsString), &tolerations)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s", ErrInvalidConfiguration, err)
+		}
+	} else {
+		log.Infof("%s is missing configuration for tolerations")
+	}
+
+	return nil, nil, nil
 }
 
-func buildPath(podSpec corev1.PodSpec) AffinityPath {
+// func (m *AffinityInjector) nodeSelectorTerms(namespace string) ([]corev1.NodeSelectorTerm, error) {
+// 	configMap, err := m.clientset.CoreV1().
+// 		ConfigMaps(namespace).
+// 		Get(context.Background(), m.configMapName, metav1.GetOptions{})
+// 	if err != nil {
+// 		return nil, fmt.Errorf("%w: %s", ErrMissingConfiguration, err)
+// 	}
+//
+// 	nodeSelectorTermsString, exists := configMap.Data[cmKey]
+// 	if !exists {
+// 		return nil, fmt.Errorf("%w: nodeSelectorTerms is missing from the config map", ErrMissingNodeSelectorTerms)
+// 	}
+//
+// 	var nodeSelectorTerms []corev1.NodeSelectorTerm
+// 	err = yamlUnmarshal([]byte(nodeSelectorTermsString), &nodeSelectorTerms)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("%w: %s", ErrInvalidConfiguration, err)
+// 	}
+//
+// 	return nodeSelectorTerms, nil
+// }
+
+func buildNodeSelectorTermsPath(podSpec corev1.PodSpec) AffinityPath {
 	var path AffinityPath
 
 	if podSpec.Affinity == nil {
@@ -171,6 +226,18 @@ func buildPath(podSpec corev1.PodSpec) AffinityPath {
 		path = AddRequiredDuringScheduling
 	} else {
 		path = AddNodeSelectorTerms
+	}
+
+	return path
+}
+
+func buildTolerationsPath(podSpec corev1.PodSpec) TolerationsPath {
+	var path TolerationsPath
+
+	if podSpec.Tolerations == nil {
+		path = CreateTolerations
+	} else {
+		path = AddTolerations
 	}
 
 	return path
@@ -209,4 +276,38 @@ func buildPatch(path AffinityPath, nodeSelectorTerms []corev1.NodeSelectorTerm) 
 	}
 
 	return patchString, nil
+}
+
+func buildNodeSelectorPatch(path string, nodeSelectorTerms []corev1.NodeSelectorTerm) (JSONPatch, error) {
+	patch := JSONPatch{
+		Op:   "add",
+		Path: path,
+	}
+
+	patchAffinity := &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: nodeSelectorTerms,
+			},
+		},
+	}
+
+	switch path {
+	case AddNodeSelectorTerms:
+		patch.Value = patchAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+	case AddRequiredDuringScheduling:
+		patch.Value = patchAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	case CreateNodeAffinity:
+		patch.Value = patchAffinity.NodeAffinity
+	case CreateAffinity:
+		patch.Value = patchAffinity
+	default:
+		return nil, fmt.Errorf("%w: invalid patch path", ErrFailedToCreatePatch)
+	}
+
+	return patch, nil
+}
+
+func buildTolerationsPatch(path string, tolerations []corev1.Toleration) (JSONPatch, error) {
+
 }
