@@ -1,11 +1,10 @@
-kind: ClusterRole
+---
+kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: namespace-node-affinity
+  namespace: default
 rules:
-- apiGroups: ["admissionregistration.k8s.io"]
-  resources: ["mutatingwebhookconfigurations"]
-  verbs: ["get", "create", "update"]
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: ["get"]

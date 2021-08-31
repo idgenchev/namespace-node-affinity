@@ -28,22 +28,3 @@ data:
       - key: "example-key"
         operator: "Exists"
         effect: "NoSchedule"
-
-
-# ---
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: namespace-node-affinity
-#   namespace: testing-ns
-# data:
-#   nodeSelectorTerms: |
-#     - matchExpressions:
-#       - key: the-testing-key
-#         operator: In
-#         values:
-#         - the-testing-val1
-#   tolerations: |
-#     - key: "example-key"
-#       operator: "Exists"
-#       effect: "NoSchedule"

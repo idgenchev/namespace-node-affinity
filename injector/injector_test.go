@@ -1,4 +1,4 @@
-package affinityinjector
+package injector
 
 import (
 	"encoding/json"

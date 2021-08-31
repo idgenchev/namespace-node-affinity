@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/idgenchev/namespace-node-affinity/affinityinjector"
+	"github.com/idgenchev/namespace-node-affinity/injector"
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -69,7 +69,7 @@ func main() {
 	}
 
 	h := handler{
-		affinityinjector.NewAffinityInjector(clientset, opts.ConfigMapName),
+		injector.NewInjector(clientset, opts.Namespace, opts.ConfigMapName),
 	}
 	mux.HandleFunc("/mutate", h.mutate)
 
