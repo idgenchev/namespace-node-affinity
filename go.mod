@@ -1,4 +1,4 @@
-module github.com/idgenchev/namespace-node-affinity/injector
+module github.com/idgenchev/namespace-node-affinity
 
 go 1.16
 
