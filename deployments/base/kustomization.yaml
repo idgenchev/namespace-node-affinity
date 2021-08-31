@@ -9,5 +9,7 @@ resources:
 - deployment.yaml
 - role.yaml
 - rolebinding.yaml
+- clusterrole.yaml
+- clusterrolebinding.yaml
 - sa.yaml
 - service.yaml

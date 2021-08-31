@@ -3,28 +3,33 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: namespace-node-affinity
-  namespace: testing-ns
+  namespace: default
 data:
-  namespaceA:
-    nodeSelectorTerms: |
+  testing-ns: |
+    nodeSelectorTerms:
       - matchExpressions:
         - key: the-testing-key
           operator: In
           values:
           - the-testing-val1
-    tolerations: |
+    tolerations:
       - key: "example-key"
         operator: "Exists"
         effect: "NoSchedule"
-  namespaceB:
-    nodeSelectorTerms: |
+  testing-ns-b: |
+    nodeSelectorTerms:
       - matchExpressions:
         - key: the-testing-key
           operator: In
           values:
           - the-testing-val1
-  namespaceC:
-    tolerations: |
+  testing-ns-c: |
+    tolerations:
+      - key: "example-key"
+        operator: "Exists"
+        effect: "NoSchedule"
+  testing-ns-d: |
+    invalid:
       - key: "example-key"
         operator: "Exists"
         effect: "NoSchedule"

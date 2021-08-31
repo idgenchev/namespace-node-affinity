@@ -122,23 +122,11 @@ func (m *Injector) Mutate(body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	nodeSelectorTermsPatchPath := buildNodeSelectorTermsPath(pod.Spec)
-	nodeSelectorTermsPatch, err := buildNodeSelectorPatch(nodeSelectorTermsPatchPath, config.NodeSelectorTerms)
+	patch, err := buildPatch(config, pod.Spec)
 	if err != nil {
 		return nil, err
 	}
 
-	tolerationsPatchPath := buildTolerationsPath(pod.Spec)
-	tolerationsPatch := JSONPatch{
-		Op:    "add",
-		Path:  tolerationsPatchPath,
-		Value: config.Tolerations,
-	}
-
-	patch, err := jsonMarshal([]JSONPatch{nodeSelectorTermsPatch, tolerationsPatch})
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToCreatePatch, err)
-	}
 	resp.Patch = patch
 
 	resp.AuditAnnotations = map[string]string{
@@ -239,6 +227,40 @@ func buildNodeSelectorPatch(path PatchPath, nodeSelectorTerms []corev1.NodeSelec
 		patch.Value = patchAffinity
 	default:
 		return JSONPatch{}, fmt.Errorf("%w: invalid patch path", ErrFailedToCreatePatch)
+	}
+
+	return patch, nil
+}
+
+func buildPatch(config *NamespaceConfig, podSpec corev1.PodSpec) ([]byte, error) {
+	patches := []JSONPatch{}
+
+	if config.NodeSelectorTerms != nil {
+		nodeSelectorTermsPatchPath := buildNodeSelectorTermsPath(podSpec)
+		nodeSelectorTermsPatch, err := buildNodeSelectorPatch(nodeSelectorTermsPatchPath, config.NodeSelectorTerms)
+		if err != nil {
+			return nil, err
+		}
+
+		patches = append(patches, nodeSelectorTermsPatch)
+	}
+
+	if config.Tolerations != nil {
+		tolerationsPatchPath := buildTolerationsPath(podSpec)
+		for _, toleration := range config.Tolerations {
+			tolerationsPatch := JSONPatch{
+				Op:    "add",
+				Path:  tolerationsPatchPath,
+				Value: toleration,
+			}
+
+			patches = append(patches, tolerationsPatch)
+		}
+	}
+
+	patch, err := jsonMarshal(patches)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToCreatePatch, err)
 	}
 
 	return patch, nil
