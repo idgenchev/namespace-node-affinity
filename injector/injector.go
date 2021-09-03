@@ -22,7 +22,6 @@ var (
 	ErrFailedToCreatePatch           = errors.New("failed to create patch")
 	ErrFailedToReadNodeSelectorTerms = errors.New("failed to load node selector terms")
 	ErrMissingConfiguration          = errors.New("missing configuration")
-	ErrMissingNodeSelectorTerms      = errors.New("missing nodeSelectorTerms from config")
 	ErrInvalidConfiguration          = errors.New("invalid configuration")
 )
 
@@ -79,10 +78,10 @@ func NewInjector(k8sclient k8sclient.Interface, namespace string, configMapName 
 	return &Injector{k8sclient, namespace, configMapName}
 }
 
-// Mutate unmarshalls the AdmissionReview (body) and creates or
-// updates the nodeAffinity of the k8s object in the admission review
-// request, sets the AdmissionReview response and returns the
-// marshalled AdmissionReview or an error
+// Mutate unmarshalls the AdmissionReview (body) and creates or updates the
+// nodeAffinity and/or the tolerations of the k8s object in the admission
+// review request, sets the AdmissionReview response and returns the marshalled
+// AdmissionReview or an error
 func (m *Injector) Mutate(body []byte) ([]byte, error) {
 	log.Infof("Received AdmissionReview: %s\n", string(body))
 
@@ -191,18 +190,13 @@ func buildNodeSelectorTermsPath(podSpec corev1.PodSpec) PatchPath {
 }
 
 func buildTolerationsPath(podSpec corev1.PodSpec) PatchPath {
-	var path PatchPath
-
 	if podSpec.Tolerations == nil {
-		path = CreateTolerations
-	} else {
-		path = AddTolerations
+		return CreateTolerations
 	}
-
-	return path
+	return AddTolerations
 }
 
-func buildNodeSelectorPatch(path PatchPath, nodeSelectorTerms []corev1.NodeSelectorTerm) (JSONPatch, error) {
+func buildNodeSelectorTermsPatch(path PatchPath, nodeSelectorTerms []corev1.NodeSelectorTerm) (JSONPatch, error) {
 	patch := JSONPatch{
 		Op:   "add",
 		Path: path,
@@ -237,7 +231,7 @@ func buildPatch(config *NamespaceConfig, podSpec corev1.PodSpec) ([]byte, error)
 
 	if config.NodeSelectorTerms != nil {
 		nodeSelectorTermsPatchPath := buildNodeSelectorTermsPath(podSpec)
-		nodeSelectorTermsPatch, err := buildNodeSelectorPatch(nodeSelectorTermsPatchPath, config.NodeSelectorTerms)
+		nodeSelectorTermsPatch, err := buildNodeSelectorTermsPatch(nodeSelectorTermsPatchPath, config.NodeSelectorTerms)
 		if err != nil {
 			return nil, err
 		}
