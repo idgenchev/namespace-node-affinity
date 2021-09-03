@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/idgenchev/namespace-node-affinity/pkg/affinityinjector"
+	"github.com/idgenchev/namespace-node-affinity/injector"
+
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -20,7 +21,8 @@ var opts struct {
 	WriteTimeout  time.Duration `long:"write-timeout" default:"10s" description:"Write timeout"`
 	CertFile      string        `lond:"cert" short:"c" env:"CERT" default:"/etc/webhook/certs/tls.crt" description:"Path to the cert file"`
 	KeyFile       string        `lond:"key" short:"k" env:"KEY" default:"/etc/webhook/certs/tls.key" description:"Path to the key file"`
-	ConfigMapName string        `long:"config-map-name" short:"m" env:"CONFIG_MAP_NAME" default:"namespace-node-affinity" description:"Name of the configm map containing the node selector terms to be applied to every pod on creation. This config map should be present in every namespace where this webhook is enabled"`
+	Namespace     string        `long:"namespace" short:"n" env:"NAMESPACE" description:"The namespace where the configmap is deployed"`
+	ConfigMapName string        `long:"config-map-name" short:"m" env:"CONFIG_MAP_NAME" default:"namespace-node-affinity" description:"Name of the configm map containing the node selector terms to be applied to every pod on creation."`
 }
 
 type injectorInterface interface {
@@ -68,7 +70,7 @@ func main() {
 	}
 
 	h := handler{
-		affinityinjector.NewAffinityInjector(clientset, opts.ConfigMapName),
+		injector.NewInjector(clientset, opts.Namespace, opts.ConfigMapName),
 	}
 	mux.HandleFunc("/mutate", h.mutate)
 

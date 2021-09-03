@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,9 +27,13 @@ spec:
             memory: 64Mi
         env:
           - name: CERT
-            value: &cert /etc/webhook/certs/tls.crt
+            value: /etc/webhook/certs/tls.crt
           - name: KEY
-            value: &key /etc/webhook/certs/tls.key
+            value: /etc/webhook/certs/tls.key
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
       initContainers:
       - name: init-webhook
         image: idgenchev/namespace-node-affinity-init-container
@@ -43,9 +48,9 @@ spec:
           - name: SERVICE_NAME
             value: namespace-node-affinity
           - name: CERT
-            value: *cert
+            value: /etc/webhook/certs/tls.crt
           - name: KEY
-            value: *key
+            value: /etc/webhook/certs/tls.key
       volumes:
       - name: webhook-certs
         emptyDir: {}

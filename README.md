@@ -3,7 +3,7 @@
 
 # Namespace Node Affinity
 
-Namespace Node Affinity is a Kubernetes mutating webhook which provides the ability to define node affinity for pods on a namespace level.
+Namespace Node Affinity is a Kubernetes mutating webhook which provides the ability to define node affinity and/or tolerations for pods on a namespace level.
 
 It is a replacement for the [PodNodeSelector](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podnodeselector) admission controller and it is useful when using a managed k8s control plane such as [GKE](https://cloud.google.com/kubernetes-engine) or [EKS](https://aws.amazon.com/eks) where you do not have the ability to enable additional admission controller plugins and the [PodNodeSelector](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podnodeselector) might not be available. The only admission controller plugin required to run the namespace-node-affinity mutating webhook is the `MutatingAdmissionWebhook` which is already enabled on most managed Kubernetes services such as [EKS](https://docs.aws.amazon.com/eks/latest/userguide/platform-versions.html).
 
@@ -18,8 +18,10 @@ kubectl apply -k deployments/base
 
 This will create the following:
  * namespace-node-affinity ServiceAccount
+ * namespace-node-affinity Role
+ * namespace-node-affinity RoleBinding
  * namespace-node-affinity ClusterRole
- * namespace-node-affinity-rolebinding ClusterRoleBinding
+ * namespace-node-affinity ClusterRoleBinding
  * namespace-node-affinity Service
  * namespace-node-affinity Deployment
 
@@ -31,11 +33,11 @@ Docker images for the webhook are available for multiple platforms [here](https:
 
 # Required Permissions
 
-The namespace-node-affinity webhook requires `get` permissions for `configmaps` in all namespaces, so it can read the configuration for each namespace it's enabled for.
+The namespace-node-affinity webhook requires `get` permissions for `configmaps` in the namespace where the centralised config is deployed.
 
 The init container (if used) requires `get`, `create` and `update` for `mutatingwebhookconfigurations` in the `admissionregistration.k8s.io` api group to create or update the MutatingWebhookConfiguration.
 
-The `ClusterRole` included in [deployments](/deployments/) already includes all of the required permissions.
+The `Role` and `ClusterRole` included in [deployments](/deployments/) already include all of the required permissions and the supplied `RoleBinding` and `ClusterRoleBinding` binds the `Role` and `ClusterRole` to the `ServiceAccount` used by the webhook.
 
 # Configuration
 
@@ -44,28 +46,37 @@ To enable the namespace-node-affinity mutating webhook on a namespace you simply
 kubectl label ns my-namespace namespace-node-affinity=enabled
 ```
 
-In order to add `nodeAffinity` to pods in that namespace you will have to create a `ConfigMap` named `namespace-node-affinity` that contains a `nodeSelectorTerms` key with the node selector terms in either JSON or YAML format. The `nodeSelectorTerms` from the config map will be added as `requiredDuringSchedulingIgnoredDuringExecution` node affinity type to each pod that is created in the labeled namespace. An example config map can be found in [examples/sample_configmap.yaml](/examples/sample_configmap.yaml). More information on how node affinity works can be found [here](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity).
+Each namespace with the `namespace-node-affinity=enabled` label will also need an entry in the `ConfigMap` where the configuration for the webhook is stored. The config for each namespace can be in either JSON or YAML format and must have at least one of `nodeSelectorTerms` or `tolerations`. The `nodeSelectorTerms` from the config will be added as `requiredDuringSchedulingIgnoredDuringExecution` node affinity type to each pod that is created in the labeled namespace. An example configuration can be found in [examples/sample_configmap.yaml](/examples/sample_configmap.yaml).
+
+More information on how node affinity works can be found [here](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity).
+More information on how taints and tolerations work can be found [here](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/).
 
 # Failure Modes
 
 When using the provided init container to create the mutating webhook configuration, the namespace-node-affinity mutating webhook will fail silently so pods can still be created on the cluster if the webhook has been misconfigured. The affected namespace can be seen in the `AdmissionReview.Namespace`.
 
- * Missing `namespace-node-affinity` `ConfigMap` in a namespace labeled with `namespace-node-affinity=enabled`
+ * Missing `namespace-node-affinity` `ConfigMap`
 ```
 time="2021-04-10T09:35:06Z" level=info msg="Received AdmissionReview: {...}
 time="2021-04-10T09:35:06Z" level=error msg="missing configuration: configmaps \"namespace-node-affinity\" not found"
 ```
 
- * Missing `nodeSelectorTerms` from the `namespace-node-affinity` `ConfigMap`
+ * Missing entry for the namespace in the `ConfigMap`
 ```
-time="2021-04-10T09:37:57Z" level=info msg="Received AdmissionReview: {...}
-time="2021-04-10T09:37:57Z" level=error msg="missing nodeSelectorTerms from config: nodeSelectorTerms is missing from the config map"
+time="2021-09-03T17:32:16Z" level=info msg="Received AdmissionReview: {...}
+time="2021-09-03T17:32:16Z" level=error msg="missing configuration: for testing-ns-e"
 ```
 
- * Invalid `nodeSelectorTerms` in the `namespace-node-affinity` `ConfigMap`
+ * Both `nodeSelectorTerms` and `tolerations` are missing from the entry for the namespace in the `ConfigMap`
+```
+time="2021-09-03T17:38:46Z" level=info msg="Received AdmissionReview: {...}
+time="2021-09-03T17:38:46Z" level=error msg="invalid configuration: at least one of nodeSelectorTerms or tolerations needs to be specified for testing-ns-d"
+```
+
+ * Invalid `nodeSelectorTerms` or `tolerations` in the `namespace-node-affinity` `ConfigMap`
 ```
 time="2021-04-10T09:40:59Z" level=info msg="Received AdmissionReview: {...}
-time="2021-04-10T09:40:59Z" level=error msg="invalid configuration: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []v1.NodeSelectorTerm"
+time="2021-04-10T09:40:59Z" level=error msg="invalid configuration: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go struct field NamespaceConfig.nodeSelectorTerms of type []v1.NodeSelectorTerm"
 ```
 
 # Contributing
