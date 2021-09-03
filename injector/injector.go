@@ -61,6 +61,7 @@ type JSONPatch struct {
 	Value interface{} `json:"value"`
 }
 
+// NamespaceConfig is the per-namespace configuration
 type NamespaceConfig struct {
 	NodeSelectorTerms []corev1.NodeSelectorTerm `json:"nodeSelectorTerms"`
 	Tolerations       []corev1.Toleration       `json:"tolerations"`
