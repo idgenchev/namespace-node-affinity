@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/idgenchev/namespace-node-affinity/injector"
+
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
