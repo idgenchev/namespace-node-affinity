@@ -8,17 +8,15 @@ check-minikube:
 	@[ $(MINIKUBE_RUNNING) != 'Running' ] && (echo 'minikube is not running' && exit 1) || echo 'minikube is running'
 
 build-init-container-image: check-minikube
-	(cd .. && docker build -t namespace-node-affinity-init-container -f build/DockerfileInitContainer .)
-	(minikube cache add namespace-node-affinity-init-container)
+	(cd .. && minikube image build -t namespace-node-affinity-init-container -f build/DockerfileInitContainer .)
 
 build-webhook-image: check-minikube
-	(cd .. && docker build -t namespace-node-affinity -f build/Dockerfile .)
-	(minikube cache add namespace-node-affinity)
+	(cd .. && minikube image build -t namespace-node-affinity -f build/Dockerfile .)
 
 clean:
 	(cd .. && kubectl delete -k deployments/overlays/local)
-	(minikube cache delete namespace-node-affinity-init-container)
-	(minikube cache delete namespace-node-affinity)
+	(minikube image rm namespace-node-affinity-init-container)
+	(minikube image rm namespace-node-affinity)
 
 test:
 	(cd .. && go test ./...)
