@@ -1,6 +1,6 @@
 # Builder
-# golang:1.16-alpine3.12
-FROM golang@sha256:4ab868cf59933af43b9a5d528a08faad7eb673ac9734a1c186a91d0e9c11f942 as builder
+# golang:1.17.0-alpine3.14
+FROM golang@sha256:c03a922dfb0d6d3a94d46cc5be69002011763595ac2786068fde63ee174d797b as builder
 
 COPY . ./app
 
@@ -15,8 +15,7 @@ RUN apk add --no-cache gcc musl-dev libc6-compat
 RUN go build -ldflags "-linkmode external -extldflags -static" -o /namespace-node-affinity cmd/nsnodeaffinity/main.go
 
 # Webhook
-# FROM scratch
-FROM alpine:latest
+FROM scratch
 
 EXPOSE 8443
 
