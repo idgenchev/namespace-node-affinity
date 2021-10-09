@@ -16,6 +16,8 @@ data:
       - key: "example-key"
         operator: "Exists"
         effect: "NoSchedule"
+    excludedLabels:
+      ignoreme: ignored
   testing-ns-b: |
     nodeSelectorTerms:
       - matchExpressions:
