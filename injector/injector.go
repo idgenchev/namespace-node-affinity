@@ -65,6 +65,7 @@ type JSONPatch struct {
 type NamespaceConfig struct {
 	NodeSelectorTerms []corev1.NodeSelectorTerm `json:"nodeSelectorTerms"`
 	Tolerations       []corev1.Toleration       `json:"tolerations"`
+	ExcludedLabels    map[string]string         `json:"excludedLabels"`
 }
 
 // Injector handles AdmissionReview objects
@@ -120,6 +121,12 @@ func (m *Injector) Mutate(body []byte) ([]byte, error) {
 	config, err := m.configForNamespace(podNamespace)
 	if err != nil {
 		return nil, err
+	}
+
+	if ignorePodWithLabels(pod.Labels, config) {
+		log.Infof("Ignoring pod with labels: %#v in namespace: %s", pod.Labels, podNamespace)
+		// return the unmodified AdmissionReview
+		return body, nil
 	}
 
 	patch, err := buildPatch(config, pod.Spec)
@@ -259,4 +266,19 @@ func buildPatch(config *NamespaceConfig, podSpec corev1.PodSpec) ([]byte, error)
 	}
 
 	return patch, nil
+}
+
+func ignorePodWithLabels(podLabels map[string]string, config *NamespaceConfig) bool {
+	if len(config.ExcludedLabels) == 0 {
+		return false
+	}
+
+	numMatchedLabels := 0
+	for k, v := range config.ExcludedLabels {
+		if podVal, ok := podLabels[k]; ok && podVal == v {
+			numMatchedLabels += 1
+		}
+	}
+
+	return numMatchedLabels == len(config.ExcludedLabels)
 }

@@ -473,3 +473,51 @@ func TestMutate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedBody, body)
 }
+
+func TestMutateIgnoresPodsWithExcludedLabels(t *testing.T) {
+	t.Parallel()
+
+	deploymentNamespace := "ns-node-affinity"
+	podNamespace := "testing-ns"
+
+	nsConfig := NamespaceConfig{
+		NodeSelectorTerms: nodeSelectorTerms(),
+		Tolerations:       tolerations(),
+		ExcludedLabels:    map[string]string{"ignore-me": "ignored"},
+	}
+	nsConfigJSON, _ := json.Marshal(nsConfig)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cm",
+			Namespace: deploymentNamespace,
+		},
+		Data: map[string]string{podNamespace: string(nsConfigJSON)},
+	}
+	clientset := fake.NewSimpleClientset(cm)
+	m := Injector{clientset, deploymentNamespace, "test-cm"}
+
+	admissionReview := v1beta1.AdmissionReview{
+		Request: &v1beta1.AdmissionRequest{
+			Namespace: podNamespace,
+			Object: runtime.RawExtension{
+				Object: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"ignore-me":     "ignored",
+							"another-label": "label",
+						},
+					},
+				},
+			},
+		},
+	}
+	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
+
+	body, err := m.Mutate(j)
+	assert.NoError(t, err)
+
+	assert.NoError(t, err)
+	assert.Equal(t, j, body)
+}
