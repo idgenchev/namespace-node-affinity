@@ -276,7 +276,7 @@ func ignorePodWithLabels(podLabels map[string]string, config *NamespaceConfig) b
 	numMatchedLabels := 0
 	for k, v := range config.ExcludedLabels {
 		if podVal, ok := podLabels[k]; ok && podVal == v {
-			numMatchedLabels += 1
+			numMatchedLabels++
 		}
 	}
 
