@@ -6,6 +6,8 @@ COPY . ./app
 
 WORKDIR ./app
 
+RUN go mod download
+
 RUN export GO111MODULE=on
 
 RUN apk add --no-cache gcc musl-dev libc6-compat
