@@ -1,5 +1,6 @@
-![CI/CD](https://github.com/idgenchev/namespace-node-affinity/actions/workflows/cicd.yaml/badge.svg?branch=main)
+![CI](https://github.com/idgenchev/namespace-node-affinity/actions/workflows/ci.yaml/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/idgenchev/namespace-node-affinity)](https://goreportcard.com/report/github.com/idgenchev/namespace-node-affinity)
+[![codecov](https://codecov.io/gh/idgenchev/namespace-node-affinity/branch/main/graph/badge.svg?token=MEIA879BHX)](https://codecov.io/gh/idgenchev/namespace-node-affinity)
 
 # Namespace Node Affinity
 
