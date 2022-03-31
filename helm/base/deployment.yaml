@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-node-affinity
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: namespace-node-affinity
+    spec:
+      serviceAccountName: namespace-node-affinity
+      containers:
+      - name: mutator
+        image: idgenchev/namespace-node-affinity
+        volumeMounts:
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+          readOnly: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 250m
+            memory: 64Mi
+        env:
+          - name: CERT
+            value: /etc/webhook/certs/tls.crt
+          - name: KEY
+            value: /etc/webhook/certs/tls.key
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      initContainers:
+      - name: init-webhook
+        image: idgenchev/namespace-node-affinity-init-container
+        volumeMounts:
+        - mountPath: /etc/webhook/certs
+          name: webhook-certs
+        env:
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: SERVICE_NAME
+            value: namespace-node-affinity
+          - name: CERT
+            value: /etc/webhook/certs/tls.crt
+          - name: KEY
+            value: /etc/webhook/certs/tls.key
+      volumes:
+      - name: webhook-certs
+        emptyDir: {}

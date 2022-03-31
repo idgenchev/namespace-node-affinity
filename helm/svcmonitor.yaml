@@ -1,0 +1,13 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: namespace-node-affinity
+  labels:
+    team: webhook
+spec:
+  selector:
+    matchLabels:
+      app: namespace-node-affinity
+  endpoints:
+  - port: web
