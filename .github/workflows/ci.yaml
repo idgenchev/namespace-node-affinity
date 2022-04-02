@@ -25,7 +25,7 @@ jobs:
           go-version: '1.18.0'
 
       - name: Install dependencies
-        run: go get -u golang.org/x/lint/golint
+        run: go install golang.org/x/lint/golint@latest
 
       - name: Lint
         run: golint -set_exit_status ./...
