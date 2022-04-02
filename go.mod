@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/go-logr/logr v0.3.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/onsi/ginkgo v1.14.1 // indirect
