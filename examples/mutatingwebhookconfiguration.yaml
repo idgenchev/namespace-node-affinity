@@ -1,4 +1,4 @@
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: namespace-node-affinity
@@ -19,6 +19,7 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
+    admissionReviewVersions: ["v1"]
     sideEffects: None
     timeoutSeconds: 5
     reinvocationPolicy: Never
