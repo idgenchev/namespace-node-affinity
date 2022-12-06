@@ -34,7 +34,8 @@ const (
 	CreateAffinity              = "/spec/affinity"
 	CreateNodeAffinity          = "/spec/affinity/nodeAffinity"
 	AddRequiredDuringScheduling = "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution"
-	AddNodeSelectorTerms        = "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/-"
+	AddNodeSelectorTerms        = "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms"
+	AddToNodeSelectorTerms      = "/spec/affinity/nodeAffinity/requiredDuringSchedulingIgnoredDuringExecution/nodeSelectorTerms/-"
 	// tolerations
 	CreateTolerations = "/spec/tolerations"
 	AddTolerations    = "/spec/tolerations/-"
@@ -190,8 +191,11 @@ func buildNodeSelectorTermsPath(podSpec corev1.PodSpec) PatchPath {
 		path = CreateNodeAffinity
 	} else if podSpec.Affinity.NodeAffinity != nil && podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
 		path = AddRequiredDuringScheduling
-	} else {
+	} else if podSpec.Affinity.NodeAffinity != nil && podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil && podSpec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms == nil {
 		path = AddNodeSelectorTerms
+	} else {
+		// We have a nodeSelectorTerms that != nil (eg: it is a 0 or more length array, or it is malformed)
+		path = AddToNodeSelectorTerms
 	}
 
 	return path
@@ -204,7 +208,20 @@ func buildTolerationsPath(podSpec corev1.PodSpec) PatchPath {
 	return AddTolerations
 }
 
-func buildNodeSelectorTermsPatch(path PatchPath, nodeSelectorTerms []corev1.NodeSelectorTerm) (JSONPatch, error) {
+func buildNodeSelectorTermPatch(path PatchPath, nodeSelectorTerm corev1.NodeSelectorTerm) JSONPatch {
+	patch := JSONPatch{
+		Op:    "add",
+		Path:  path,
+		Value: nodeSelectorTerm,
+	}
+
+	return patch
+}
+
+// Returns a patch that initialises the PodSpec's NodeSelectorTerms array as an empty array, if it does not exist
+func buildNodeSelectorTermsInitPatch(podSpec corev1.PodSpec) (JSONPatch, error) {
+	path := buildNodeSelectorTermsPath(podSpec)
+
 	patch := JSONPatch{
 		Op:   "add",
 		Path: path,
@@ -213,19 +230,27 @@ func buildNodeSelectorTermsPatch(path PatchPath, nodeSelectorTerms []corev1.Node
 	patchAffinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: nodeSelectorTerms,
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{},
 			},
 		},
 	}
 
 	switch path {
+	case AddToNodeSelectorTerms:
+		// Array for NodeSelectorTerms already exists.  Do nothing
+		return JSONPatch{}, nil
 	case AddNodeSelectorTerms:
+		// NodeSelectorTerms array missing, add it
+		fmt.Print("buildNodeSelectorTermsInitPatch case AddNodeSelectorTerms\n")
 		patch.Value = patchAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
 	case AddRequiredDuringScheduling:
+		// Adds RequiredDuringScheduling with NodeSelectorTerms
 		patch.Value = patchAffinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 	case CreateNodeAffinity:
+		// Adds NodeAffinity with RequiredDuringScheduling and NodeSelectorTerms
 		patch.Value = patchAffinity.NodeAffinity
 	case CreateAffinity:
+		// Adds Affinity with NodeAffinity, RequiredDuringScheduling, and NodeSelectorTerms
 		patch.Value = patchAffinity
 	default:
 		return JSONPatch{}, fmt.Errorf("%w: invalid patch path", ErrFailedToCreatePatch)
@@ -235,19 +260,27 @@ func buildNodeSelectorTermsPatch(path PatchPath, nodeSelectorTerms []corev1.Node
 }
 
 func buildPatch(config *NamespaceConfig, podSpec corev1.PodSpec) ([]byte, error) {
-	patches := []JSONPatch{}
+	var patches []JSONPatch
 
 	if config.NodeSelectorTerms != nil {
-		nodeSelectorTermsPatchPath := buildNodeSelectorTermsPath(podSpec)
-		nodeSelectorTermsPatch, err := buildNodeSelectorTermsPatch(nodeSelectorTermsPatchPath, config.NodeSelectorTerms)
+		initPatch, err := buildNodeSelectorTermsInitPatch(podSpec)
 		if err != nil {
 			return nil, err
 		}
+		if (initPatch != JSONPatch{}) {
+			patches = append(patches, initPatch)
+		}
 
-		patches = append(patches, nodeSelectorTermsPatch)
+		// todo: extract this so it is easier to test
+		for _, NodeSelectorTerm := range config.NodeSelectorTerms {
+			nodeSelectorTermsPatch := buildNodeSelectorTermPatch(AddToNodeSelectorTerms, NodeSelectorTerm)
+
+			patches = append(patches, nodeSelectorTermsPatch)
+		}
 	}
 
 	if config.Tolerations != nil {
+		// todo: handle adding tolerations to an existing array
 		tolerationsPatchPath := buildTolerationsPath(podSpec)
 		for _, toleration := range config.Tolerations {
 			tolerationsPatch := JSONPatch{
