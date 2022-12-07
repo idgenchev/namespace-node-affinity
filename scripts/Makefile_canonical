@@ -1,0 +1,26 @@
+SHELL=/bin/bash
+DOCKER_USERNAME ?= charmedkubeflow
+APPLICATION_NAME ?= namespace-node-affinity
+GIT_HASH ?= $(shell git rev-parse HEAD)
+TAGGED_IMAGE_NAME ?= ${DOCKER_USERNAME}/${APPLICATION_NAME}:${GIT_HASH}
+
+
+.PHONY: test clean
+
+build-webhook-image:
+	(cd .. && docker build -t ${TAGGED_IMAGE_NAME} -f build/Dockerfile .)
+
+push-webhook-image: build-webhook-image
+    (docker push ${TAGGED_IMAGE_NAME})
+
+clean-images:
+	(docker image rm namespace-node-affinity-init-container)
+	(docker image rm namespace-node-affinity)
+
+clean-k8s:
+	(cd .. && kubectl delete -k deployments/overlays/local)
+
+clean: clean-k8s clean-images
+
+test:
+	(cd .. && go test ./...)
