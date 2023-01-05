@@ -204,18 +204,8 @@ func TestBuildNodeSelectorTermPatch(t *testing.T) {
 	assert.Equal(t, patch, expectedPatch)
 }
 
-func TestBuildNodeSelctorTermsInitPatch(t *testing.T) {
+func TestBuildNodeSelectorTermsInitPatch(t *testing.T) {
 	t.Parallel()
-
-	//podSpecWithEmptyNodeSelectorTerms := corev1.PodSpec{
-	//	Affinity: &corev1.Affinity{
-	//		NodeAffinity: &corev1.NodeAffinity{
-	//			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-	//				NodeSelectorTerms: []corev1.NodeSelectorTerm{},
-	//			},
-	//		},
-	//	},
-	//}
 
 	testCases := []struct {
 		name          string
@@ -295,8 +285,6 @@ func TestBuildNodeSelctorTermsInitPatch(t *testing.T) {
 		})
 	}
 }
-
-// todo: TestBuildNodeSelectorTermsInitPatch where the patch path is invalid?
 
 func TestMutateWithInvalidBody(t *testing.T) {
 	t.Parallel()

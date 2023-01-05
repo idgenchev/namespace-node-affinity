@@ -271,7 +271,6 @@ func buildPatch(config *NamespaceConfig, podSpec corev1.PodSpec) ([]byte, error)
 			patches = append(patches, initPatch)
 		}
 
-		// todo: extract this so it is easier to test
 		for _, NodeSelectorTerm := range config.NodeSelectorTerms {
 			nodeSelectorTermsPatch := buildNodeSelectorTermPatch(AddToNodeSelectorTerms, NodeSelectorTerm)
 
@@ -280,7 +279,6 @@ func buildPatch(config *NamespaceConfig, podSpec corev1.PodSpec) ([]byte, error)
 	}
 
 	if config.Tolerations != nil {
-		// todo: handle adding tolerations to an existing array
 		tolerationsPatchPath := buildTolerationsPath(podSpec)
 		for _, toleration := range config.Tolerations {
 			tolerationsPatch := JSONPatch{
