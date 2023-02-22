@@ -45,6 +45,58 @@ func tolerations() []corev1.Toleration {
 	}
 }
 
+// PodSpecs with various levels of completion for Node Affinity
+var (
+	podSpecWithNoAffinity     = corev1.PodSpec{}
+	podSpecWithNoNodeAffinity = corev1.PodSpec{
+		Affinity: &corev1.Affinity{PodAffinity: &corev1.PodAffinity{}},
+	}
+	podSpecWithNoRequiredDuringSchedulingIgnoreDuringExecution = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{},
+		},
+	}
+	podSpecWithNoNodeSelectorTerms = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{},
+			},
+		},
+	}
+	podSpecWithEmptyNodeSelectorTerms = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{},
+						},
+					},
+				},
+			},
+		},
+	}
+	podSpecWithExistingNodeSelectorTerms = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{
+						{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "key",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"val"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+)
+
 func TestBuildNodeSelectorTermPath(t *testing.T) {
 	t.Parallel()
 
@@ -55,49 +107,33 @@ func TestBuildNodeSelectorTermPath(t *testing.T) {
 	}{
 		{
 			name:         "WithNoAffinity",
-			podSpec:      corev1.PodSpec{},
+			podSpec:      podSpecWithNoAffinity,
 			expectedPath: CreateAffinity,
 		},
 		{
-			name: "WithNoNodeAffinity",
-			podSpec: corev1.PodSpec{
-				Affinity: &corev1.Affinity{PodAffinity: &corev1.PodAffinity{}},
-			},
+			name:         "WithNoNodeAffinity",
+			podSpec:      podSpecWithNoNodeAffinity,
 			expectedPath: CreateNodeAffinity,
 		},
 		{
-			name: "WithPreferredDuringSchedulingIgnoredDuringExecution",
-			podSpec: corev1.PodSpec{
-				Affinity: &corev1.Affinity{
-					NodeAffinity: &corev1.NodeAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{},
-					},
-				},
-			},
+			name:         "WithNoRequiredDuringSchedulingIgnoredDuringExecution",
+			podSpec:      podSpecWithNoRequiredDuringSchedulingIgnoreDuringExecution,
 			expectedPath: AddRequiredDuringScheduling,
 		},
 		{
-			name: "WithExistingAffinity",
-			podSpec: corev1.PodSpec{
-				Affinity: &corev1.Affinity{
-					NodeAffinity: &corev1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-							NodeSelectorTerms: []corev1.NodeSelectorTerm{
-								{
-									MatchExpressions: []corev1.NodeSelectorRequirement{
-										{
-											Key:      "key",
-											Operator: corev1.NodeSelectorOpIn,
-											Values:   []string{"val"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:         "WithNoNodeSelectorTerms",
+			podSpec:      podSpecWithNoNodeSelectorTerms,
 			expectedPath: AddNodeSelectorTerms,
+		},
+		{
+			name:         "WithEmptyNodeSelectorTerms",
+			podSpec:      podSpecWithEmptyNodeSelectorTerms,
+			expectedPath: AddToNodeSelectorTerms,
+		},
+		{
+			name:         "WithExistingAffinity",
+			podSpec:      podSpecWithExistingNodeSelectorTerms,
+			expectedPath: AddToNodeSelectorTerms,
 		},
 	}
 
@@ -145,61 +181,94 @@ func TestBuildTolerationsPath(t *testing.T) {
 	}
 }
 
-func TestBuildNodeSelectorTermsPatch(t *testing.T) {
+func TestBuildNodeSelectorTermPatch(t *testing.T) {
+	t.Parallel()
+
+	path := PatchPath("")
+	nodeSelectorTerm := corev1.NodeSelectorTerm{
+		MatchExpressions: []corev1.NodeSelectorRequirement{
+			corev1.NodeSelectorRequirement{
+				Key:      "test key",
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"val"},
+			},
+		},
+	}
+	expectedPatch := JSONPatch{
+		Op:    "add",
+		Path:  path,
+		Value: nodeSelectorTerm,
+	}
+
+	patch := buildNodeSelectorTermPatch(path, nodeSelectorTerm)
+	assert.Equal(t, patch, expectedPatch)
+}
+
+func TestBuildNodeSelectorTermsInitPatch(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		name          string
-		path          PatchPath
+		podSpec       corev1.PodSpec
 		expectedPatch JSONPatch
 	}{
 		{
-			name: "ForCreatePatchPath",
-			path: CreateAffinity,
+			name:    "WithNoAffinity",
+			podSpec: podSpecWithNoAffinity,
 			expectedPatch: JSONPatch{
 				Op:   "add",
 				Path: CreateAffinity,
 				Value: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-							NodeSelectorTerms: nodeSelectorTerms(),
+							NodeSelectorTerms: []corev1.NodeSelectorTerm{},
 						},
 					},
 				},
 			},
 		},
 		{
-			name: "ForCreateNodeAffinity",
-			path: CreateNodeAffinity,
+			name:    "WithNoNodeAffinity",
+			podSpec: podSpecWithNoNodeAffinity,
 			expectedPatch: JSONPatch{
 				Op:   "add",
 				Path: CreateNodeAffinity,
 				Value: &corev1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-						NodeSelectorTerms: nodeSelectorTerms(),
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{},
 					},
 				},
 			},
 		},
 		{
-			name: "ForAddRequiredDuringSchedulingPath",
-			path: AddRequiredDuringScheduling,
+			name:    "WithNoRequiredDuringSchedulingIgnoredDuringExecution",
+			podSpec: podSpecWithNoRequiredDuringSchedulingIgnoreDuringExecution,
 			expectedPatch: JSONPatch{
 				Op:   "add",
 				Path: AddRequiredDuringScheduling,
 				Value: &corev1.NodeSelector{
-					NodeSelectorTerms: nodeSelectorTerms(),
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{},
 				},
 			},
 		},
 		{
-			name: "ForAddNodeSelectorTerms",
-			path: AddNodeSelectorTerms,
+			name:    "WithNoNodeSelectorTerms",
+			podSpec: podSpecWithNoNodeSelectorTerms,
 			expectedPatch: JSONPatch{
 				Op:    "add",
 				Path:  AddNodeSelectorTerms,
-				Value: nodeSelectorTerms(),
+				Value: []corev1.NodeSelectorTerm{},
 			},
+		},
+		{
+			name:          "WithEmptyNodeSelectorTerms",
+			podSpec:       podSpecWithEmptyNodeSelectorTerms,
+			expectedPatch: JSONPatch{},
+		},
+		{
+			name:          "WithExistingNodeSelectorTerms",
+			podSpec:       podSpecWithExistingNodeSelectorTerms,
+			expectedPatch: JSONPatch{},
 		},
 	}
 
@@ -208,21 +277,13 @@ func TestBuildNodeSelectorTermsPatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			patch, err := buildNodeSelectorTermsPatch(tc.path, nodeSelectorTerms())
+			patch, err := buildNodeSelectorTermsInitPatch(tc.podSpec)
 
-			assert.NoError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, tc.expectedPatch, patch)
+
 		})
 	}
-}
-
-func TestBuildNodeSelectorTermsPatchWithInvalidPath(t *testing.T) {
-	t.Parallel()
-
-	patch, err := buildNodeSelectorTermsPatch("invalid", nodeSelectorTerms())
-	assert.Equal(t, JSONPatch{}, patch)
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrFailedToCreatePatch))
 }
 
 func TestMutateWithInvalidBody(t *testing.T) {
@@ -427,11 +488,13 @@ func TestMutate(t *testing.T) {
 	clientset := fake.NewSimpleClientset(cm)
 	m := Injector{clientset, deploymentNamespace, "test-cm"}
 
+	samplePod := corev1.Pod{}
+
 	admissionReview := v1beta1.AdmissionReview{
 		Request: &v1beta1.AdmissionRequest{
 			Namespace: podNamespace,
 			Object: runtime.RawExtension{
-				Object: &corev1.Pod{},
+				Object: &samplePod,
 			},
 		},
 	}
@@ -441,21 +504,8 @@ func TestMutate(t *testing.T) {
 	body, err := m.Mutate(j)
 	assert.NoError(t, err)
 
-	nodeSelectorPatch, _ := buildNodeSelectorTermsPatch(CreateAffinity, nodeSelectorTerms())
-	patches := []JSONPatch{
-		nodeSelectorPatch,
-		{
-			Op:    "add",
-			Path:  CreateTolerations,
-			Value: tolerations()[0],
-		},
-		{
-			Op:    "add",
-			Path:  CreateTolerations,
-			Value: tolerations()[1],
-		},
-	}
-	expectedPatch, _ := json.Marshal(patches)
+	expectedPatch, err := buildPatch(&nsConfig, samplePod.Spec)
+	assert.NoError(t, err)
 
 	jsonPatch := v1beta1.PatchTypeJSONPatch
 	expectedResp := v1beta1.AdmissionResponse{

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"k8s.io/client-go/tools/clientcmd"
 	"net/http"
 	"time"
 
@@ -23,6 +24,7 @@ var opts struct {
 	KeyFile       string        `lond:"key" short:"k" env:"KEY" default:"/etc/webhook/certs/tls.key" description:"Path to the key file"`
 	Namespace     string        `long:"namespace" short:"n" env:"NAMESPACE" description:"The namespace where the configmap is deployed"`
 	ConfigMapName string        `long:"config-map-name" short:"m" env:"CONFIG_MAP_NAME" default:"namespace-node-affinity" description:"Name of the configm map containing the node selector terms to be applied to every pod on creation."`
+	KubeConfig    string        `long:"kubeconfig" default:"" description:"Path to a kubeconfig file, if running external to a kubernets cluster for testing"`
 }
 
 type injectorInterface interface {
@@ -59,9 +61,20 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Fatalf("Failed to create k8s config: %s", err)
+	var config = &rest.Config{}
+
+	if opts.KubeConfig == "" {
+		_config, err := rest.InClusterConfig()
+		if err != nil {
+			log.Fatalf("Failed to create k8s config: %s", err)
+		}
+		config = _config
+	} else {
+		_config, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfig)
+		if err != nil {
+			panic(err.Error())
+		}
+		config = _config
 	}
 
 	clientset, err := k8sclient.NewForConfig(config)
