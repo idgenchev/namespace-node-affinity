@@ -1,6 +1,5 @@
 # Builder
-# golang:1.18.0-alpine3.15
-FROM golang@sha256:e7d1b2dff120cb5037a84e633968cf133b9af7c5f18d10cb150c4f9f7e15849b as builder
+FROM golang:1.21.9-alpine3.19 as builder
 
 COPY . ./app
 
