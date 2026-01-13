@@ -44,11 +44,10 @@ const (
 )
 
 const (
-	nodeSelectorKey      = "nodeSelectorTerms"
-	preferredAffinityKey = "preferredDuringSchedulingIgnoredDuringExecution"
-	tolerationsKey       = "tolerations"
-	successStatus        = "Success"
-	annotationKey        = "namespace-node-affinity.idgenchev.github.com/applied-patch"
+	nodeSelectorKey = "nodeSelectorTerms"
+	tolerationsKey  = "tolerations"
+	successStatus   = "Success"
+	annotationKey   = "namespace-node-affinity.idgenchev.github.com/applied-patch"
 )
 
 var (
