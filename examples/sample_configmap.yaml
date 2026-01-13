@@ -35,3 +35,38 @@ data:
       - key: "example-key"
         operator: "Exists"
         effect: "NoSchedule"
+  testing-ns-preferred: |
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: spot
+            operator: In
+            values:
+            - "true"
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: zone
+            operator: In
+            values:
+            - us-west-2a
+  testing-ns-combined: |
+    nodeSelectorTerms:
+      - matchExpressions:
+        - key: dedicated
+          operator: In
+          values:
+          - "true"
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: spot
+            operator: In
+            values:
+            - "true"
+    tolerations:
+      - key: "spot"
+        operator: "Exists"
+        effect: "NoSchedule"

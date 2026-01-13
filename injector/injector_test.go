@@ -571,3 +571,322 @@ func TestMutateIgnoresPodsWithExcludedLabels(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, j, body)
 }
+
+func preferredSchedulingTerms() []corev1.PreferredSchedulingTerm {
+	return []corev1.PreferredSchedulingTerm{
+		{
+			Weight: 100,
+			Preference: corev1.NodeSelectorTerm{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "spot",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"true"},
+					},
+				},
+			},
+		},
+		{
+			Weight: 50,
+			Preference: corev1.NodeSelectorTerm{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "zone",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"us-west-2a"},
+					},
+				},
+			},
+		},
+	}
+}
+
+// PodSpecs with various levels of completion for Preferred Node Affinity
+var (
+	podSpecWithNoPreferredAffinity = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{},
+		},
+	}
+	podSpecWithEmptyPreferredAffinity = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{},
+			},
+		},
+	}
+	podSpecWithExistingPreferredAffinity = corev1.PodSpec{
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+					{
+						Weight: 10,
+						Preference: corev1.NodeSelectorTerm{
+							MatchExpressions: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "existing",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"value"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+)
+
+func TestBuildPreferredAffinityPath(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		podSpec      corev1.PodSpec
+		expectedPath PatchPath
+	}{
+		{
+			name:         "WithNoAffinity",
+			podSpec:      podSpecWithNoAffinity,
+			expectedPath: CreateAffinity,
+		},
+		{
+			name:         "WithNoNodeAffinity",
+			podSpec:      podSpecWithNoNodeAffinity,
+			expectedPath: CreateNodeAffinity,
+		},
+		{
+			name:         "WithNoPreferredAffinity",
+			podSpec:      podSpecWithNoPreferredAffinity,
+			expectedPath: AddPreferredDuringScheduling,
+		},
+		{
+			name:         "WithEmptyPreferredAffinity",
+			podSpec:      podSpecWithEmptyPreferredAffinity,
+			expectedPath: AddToPreferredDuringScheduling,
+		},
+		{
+			name:         "WithExistingPreferredAffinity",
+			podSpec:      podSpecWithExistingPreferredAffinity,
+			expectedPath: AddToPreferredDuringScheduling,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := buildPreferredAffinityPath(tc.podSpec)
+			assert.Equal(t, tc.expectedPath, path)
+		})
+	}
+}
+
+func TestBuildPreferredAffinityPatch(t *testing.T) {
+	t.Parallel()
+
+	path := PatchPath("")
+	preferredTerm := corev1.PreferredSchedulingTerm{
+		Weight: 100,
+		Preference: corev1.NodeSelectorTerm{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      "test-key",
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"val"},
+				},
+			},
+		},
+	}
+	expectedPatch := JSONPatch{
+		Op:    "add",
+		Path:  path,
+		Value: preferredTerm,
+	}
+
+	patch := buildPreferredAffinityPatch(path, preferredTerm)
+	assert.Equal(t, expectedPatch, patch)
+}
+
+func TestBuildPreferredAffinityInitPatch(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		podSpec       corev1.PodSpec
+		expectedPatch JSONPatch
+	}{
+		{
+			name:    "WithNoAffinity",
+			podSpec: podSpecWithNoAffinity,
+			expectedPatch: JSONPatch{
+				Op:   "add",
+				Path: CreateAffinity,
+				Value: &corev1.Affinity{
+					NodeAffinity: &corev1.NodeAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{},
+					},
+				},
+			},
+		},
+		{
+			name:    "WithNoNodeAffinity",
+			podSpec: podSpecWithNoNodeAffinity,
+			expectedPatch: JSONPatch{
+				Op:   "add",
+				Path: CreateNodeAffinity,
+				Value: &corev1.NodeAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{},
+				},
+			},
+		},
+		{
+			name:    "WithNoPreferredAffinity",
+			podSpec: podSpecWithNoPreferredAffinity,
+			expectedPatch: JSONPatch{
+				Op:    "add",
+				Path:  AddPreferredDuringScheduling,
+				Value: []corev1.PreferredSchedulingTerm{},
+			},
+		},
+		{
+			name:          "WithEmptyPreferredAffinity",
+			podSpec:       podSpecWithEmptyPreferredAffinity,
+			expectedPatch: JSONPatch{},
+		},
+		{
+			name:          "WithExistingPreferredAffinity",
+			podSpec:       podSpecWithExistingPreferredAffinity,
+			expectedPatch: JSONPatch{},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			patch, err := buildPreferredAffinityInitPatch(tc.podSpec)
+
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expectedPatch, patch)
+		})
+	}
+}
+
+func TestMutateWithPreferredAffinity(t *testing.T) {
+	t.Parallel()
+
+	deploymentNamespace := "ns-node-affinity"
+	podNamespace := "testing-ns-preferred"
+
+	nsConfig := NamespaceConfig{
+		PreferredDuringSchedulingIgnoredDuringExecution: preferredSchedulingTerms(),
+	}
+	nsConfigJSON, _ := json.Marshal(nsConfig)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cm",
+			Namespace: deploymentNamespace,
+		},
+		Data: map[string]string{podNamespace: string(nsConfigJSON)},
+	}
+	clientset := fake.NewSimpleClientset(cm)
+	m := Injector{clientset, deploymentNamespace, "test-cm"}
+
+	samplePod := corev1.Pod{}
+
+	admissionReview := v1beta1.AdmissionReview{
+		Request: &v1beta1.AdmissionRequest{
+			Namespace: podNamespace,
+			Object: runtime.RawExtension{
+				Object: &samplePod,
+			},
+		},
+	}
+	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
+
+	body, err := m.Mutate(j)
+	assert.NoError(t, err)
+
+	expectedPatch, err := buildPatch(&nsConfig, samplePod.Spec)
+	assert.NoError(t, err)
+
+	jsonPatch := v1beta1.PatchTypeJSONPatch
+	expectedResp := v1beta1.AdmissionResponse{
+		PatchType:        &jsonPatch,
+		Allowed:          true,
+		Patch:            expectedPatch,
+		AuditAnnotations: map[string]string{annotationKey: string(expectedPatch)},
+		Result:           &metav1.Status{Status: successStatus},
+	}
+
+	expectedAdmissionReview := admissionReview
+	expectedAdmissionReview.Response = &expectedResp
+
+	expectedBody, err := json.Marshal(expectedAdmissionReview)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedBody, body)
+}
+
+func TestMutateWithBothRequiredAndPreferredAffinity(t *testing.T) {
+	t.Parallel()
+
+	deploymentNamespace := "ns-node-affinity"
+	podNamespace := "testing-ns-both"
+
+	nsConfig := NamespaceConfig{
+		NodeSelectorTerms: nodeSelectorTerms(),
+		PreferredDuringSchedulingIgnoredDuringExecution: preferredSchedulingTerms(),
+		Tolerations: tolerations(),
+	}
+	nsConfigJSON, _ := json.Marshal(nsConfig)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cm",
+			Namespace: deploymentNamespace,
+		},
+		Data: map[string]string{podNamespace: string(nsConfigJSON)},
+	}
+	clientset := fake.NewSimpleClientset(cm)
+	m := Injector{clientset, deploymentNamespace, "test-cm"}
+
+	samplePod := corev1.Pod{}
+
+	admissionReview := v1beta1.AdmissionReview{
+		Request: &v1beta1.AdmissionRequest{
+			Namespace: podNamespace,
+			Object: runtime.RawExtension{
+				Object: &samplePod,
+			},
+		},
+	}
+	j, err := json.Marshal(admissionReview)
+	assert.NoError(t, err)
+
+	body, err := m.Mutate(j)
+	assert.NoError(t, err)
+
+	expectedPatch, err := buildPatch(&nsConfig, samplePod.Spec)
+	assert.NoError(t, err)
+
+	jsonPatch := v1beta1.PatchTypeJSONPatch
+	expectedResp := v1beta1.AdmissionResponse{
+		PatchType:        &jsonPatch,
+		Allowed:          true,
+		Patch:            expectedPatch,
+		AuditAnnotations: map[string]string{annotationKey: string(expectedPatch)},
+		Result:           &metav1.Status{Status: successStatus},
+	}
+
+	expectedAdmissionReview := admissionReview
+	expectedAdmissionReview.Response = &expectedResp
+
+	expectedBody, err := json.Marshal(expectedAdmissionReview)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedBody, body)
+}
