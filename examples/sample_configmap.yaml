@@ -36,7 +36,7 @@ data:
         operator: "Exists"
         effect: "NoSchedule"
   testing-ns-preferred: |
-    preferredDuringSchedulingIgnoredDuringExecution:
+    preferredNodeSelectorTerms:
       - weight: 100
         preference:
           matchExpressions:
@@ -58,7 +58,7 @@ data:
           operator: In
           values:
           - "true"
-    preferredDuringSchedulingIgnoredDuringExecution:
+    preferredNodeSelectorTerms:
       - weight: 100
         preference:
           matchExpressions:

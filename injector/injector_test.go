@@ -658,17 +658,17 @@ func TestBuildPreferredAffinityPath(t *testing.T) {
 		{
 			name:         "WithNoPreferredAffinity",
 			podSpec:      podSpecWithNoPreferredAffinity,
-			expectedPath: AddPreferredDuringScheduling,
+			expectedPath: AddPreferredNodeSelectorTerms,
 		},
 		{
 			name:         "WithEmptyPreferredAffinity",
 			podSpec:      podSpecWithEmptyPreferredAffinity,
-			expectedPath: AddToPreferredDuringScheduling,
+			expectedPath: AddToPreferredNodeSelectorTerms,
 		},
 		{
 			name:         "WithExistingPreferredAffinity",
 			podSpec:      podSpecWithExistingPreferredAffinity,
-			expectedPath: AddToPreferredDuringScheduling,
+			expectedPath: AddToPreferredNodeSelectorTerms,
 		},
 	}
 
@@ -746,7 +746,7 @@ func TestBuildPreferredAffinityInitPatch(t *testing.T) {
 			podSpec: podSpecWithNoPreferredAffinity,
 			expectedPatch: JSONPatch{
 				Op:    "add",
-				Path:  AddPreferredDuringScheduling,
+				Path:  AddPreferredNodeSelectorTerms,
 				Value: []corev1.PreferredSchedulingTerm{},
 			},
 		},
@@ -782,7 +782,7 @@ func TestMutateWithPreferredAffinity(t *testing.T) {
 	podNamespace := "testing-ns-preferred"
 
 	nsConfig := NamespaceConfig{
-		PreferredDuringSchedulingIgnoredDuringExecution: preferredSchedulingTerms(),
+		PreferredNodeSelectorTerms: preferredSchedulingTerms(),
 	}
 	nsConfigJSON, _ := json.Marshal(nsConfig)
 
@@ -839,9 +839,9 @@ func TestMutateWithBothRequiredAndPreferredAffinity(t *testing.T) {
 	podNamespace := "testing-ns-both"
 
 	nsConfig := NamespaceConfig{
-		NodeSelectorTerms: nodeSelectorTerms(),
-		PreferredDuringSchedulingIgnoredDuringExecution: preferredSchedulingTerms(),
-		Tolerations: tolerations(),
+		NodeSelectorTerms:          nodeSelectorTerms(),
+		PreferredNodeSelectorTerms: preferredSchedulingTerms(),
+		Tolerations:                tolerations(),
 	}
 	nsConfigJSON, _ := json.Marshal(nsConfig)
 
