@@ -8,7 +8,7 @@ Namespace Node Affinity is a Kubernetes mutating webhook which provides the abil
 
 It is a replacement for the [PodNodeSelector](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podnodeselector) admission controller and it is useful when using a managed k8s control plane such as [GKE](https://cloud.google.com/kubernetes-engine) or [EKS](https://aws.amazon.com/eks) where you do not have the ability to enable additional admission controller plugins and the [PodNodeSelector](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podnodeselector) might not be available. The only admission controller plugin required to run the namespace-node-affinity mutating webhook is the `MutatingAdmissionWebhook` which is already enabled on most managed Kubernetes services such as [EKS](https://docs.aws.amazon.com/eks/latest/userguide/platform-versions.html).
 
-It might still be useful on [AKS](https://azure.microsoft.com/en-gb/services/kubernetes-service/) where the [PodNodeSelector](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podnodeselector) admission controller is [readily available](https://docs.microsoft.com/en-us/azure/aks/faq#what-kubernetes-admission-controllers-does-aks-support-can-admission-controllers-be-added-or-removed) as using `namespace-node-affinity` allows a litte bit more flexibility than the node selector by allowing you to set node affinity (only `requiredDuringSchedulingIgnoredDuringExecution` is supported for now) for all pods in the namespace.
+It might still be useful on [AKS](https://azure.microsoft.com/en-gb/services/kubernetes-service/) where the [PodNodeSelector](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podnodeselector) admission controller is [readily available](https://docs.microsoft.com/en-us/azure/aks/faq#what-kubernetes-admission-controllers-does-aks-support-can-admission-controllers-be-added-or-removed) as using `namespace-node-affinity` allows a litte bit more flexibility than the node selector by allowing you to set node affinity for all pods in the namespace.
 
 # Deployment
 
@@ -47,7 +47,13 @@ To enable the namespace-node-affinity mutating webhook on a namespace you simply
 kubectl label ns my-namespace namespace-node-affinity=enabled
 ```
 
-Each namespace with the `namespace-node-affinity=enabled` label will also need an entry in the `ConfigMap` where the configuration for the webhook is stored. The config for each namespace can be in either JSON or YAML format and must have at least one of `nodeSelectorTerms` or `tolerations`. The `nodeSelectorTerms` from the config will be added as `requiredDuringSchedulingIgnoredDuringExecution` node affinity type to each pod that is created in the labeled namespace. An example configuration can be found in [examples/sample_configmap.yaml](/examples/sample_configmap.yaml).
+Each namespace with the `namespace-node-affinity=enabled` label will also need an entry in the `ConfigMap` where the configuration for the webhook is stored. The config for each namespace can be in either JSON or YAML format and must have at least one of `nodeSelectorTerms`, `preferredNodeSelectorTerms`, or `tolerations`.
+
+The `nodeSelectorTerms` from the config will be added as `requiredDuringSchedulingIgnoredDuringExecution` node affinity type to each pod that is created in the labeled namespace. This is a hard requirement and pods will only be scheduled on nodes that satisfy all the specified terms.
+
+The `preferredNodeSelectorTerms` from the config will be added as soft/preferred node affinity rules to each pod. The scheduler will try to satisfy these preferences but will still schedule the pod even if no nodes match. Each preferred term has a weight (1-100) that influences scheduling decisions.
+
+An example configuration can be found in [examples/sample_configmap.yaml](/examples/sample_configmap.yaml).
 
 More information on how node affinity works can be found [here](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity).
 More information on how taints and tolerations work can be found [here](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/).
@@ -68,13 +74,13 @@ time="2021-09-03T17:32:16Z" level=info msg="Received AdmissionReview: {...}
 time="2021-09-03T17:32:16Z" level=error msg="missing configuration: for testing-ns-e"
 ```
 
- * Both `nodeSelectorTerms` and `tolerations` are missing from the entry for the namespace in the `ConfigMap`
+ * Both `nodeSelectorTerms`, `preferredNodeSelectorTerms` and `tolerations` are missing from the entry for the namespace in the `ConfigMap`
 ```
 time="2021-09-03T17:38:46Z" level=info msg="Received AdmissionReview: {...}
-time="2021-09-03T17:38:46Z" level=error msg="invalid configuration: at least one of nodeSelectorTerms or tolerations needs to be specified for testing-ns-d"
+time="2021-09-03T17:38:46Z" level=error msg="invalid configuration: at least one of nodeSelectorTerms, preferredNodeSelectorTerms or tolerations needs to be specified for testing-ns-d"
 ```
 
- * Invalid `nodeSelectorTerms` or `tolerations` in the `namespace-node-affinity` `ConfigMap`
+ * Invalid `nodeSelectorTerms`, `preferredNodeSelectorTerms` or `tolerations` in the `namespace-node-affinity` `ConfigMap`
 ```
 time="2021-04-10T09:40:59Z" level=info msg="Received AdmissionReview: {...}
 time="2021-04-10T09:40:59Z" level=error msg="invalid configuration: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go struct field NamespaceConfig.nodeSelectorTerms of type []v1.NodeSelectorTerm"
